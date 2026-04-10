@@ -15,9 +15,6 @@ resource "azurerm_mysql_flexible_server" "db" {
   sku_name   = "B_Standard_B1ms" # Burstable (Cheapest)
   version    = "8.0.21"
   
-  # This tells Azure not to worry about high availability/multiple zones
-  zone       = "1" 
-  
   storage {
     size_gb = 20 # Minimum size to keep costs low
   }
