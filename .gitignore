@@ -1,0 +1,10 @@
+# Local terraform files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+
+# Ignore variables file if it contains secrets
+*.tfvars

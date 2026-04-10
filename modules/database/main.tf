@@ -1,0 +1,23 @@
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+resource "azurerm_mysql_flexible_server" "db" {
+  name                   = "epic-db-${random_string.suffix.result}"
+  resource_group_name    = var.resource_group_name
+  location               = var.location
+  administrator_login    = "epicadmin"
+  administrator_password = var.db_password
+  sku_name               = "B_Standard_B1ms"
+  version                = "8.0.21"
+}
+
+resource "azurerm_mysql_flexible_server_firewall_rule" "all" {
+  name                = "AllowAll"
+  server_name         = azurerm_mysql_flexible_server.db.name
+  resource_group_name = var.resource_group_name
+  start_ip_address    = "0.0.0.0"
+  end_ip_address      = "255.255.255.255"
+}

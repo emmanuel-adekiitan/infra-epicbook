@@ -1,0 +1,62 @@
+trigger:
+- main
+
+variables:
+- group: Finance-secrets  # Contains ARM_CLIENT_ID, ARM_CLIENT_SECRET, etc.
+- name: terraform_version
+  value: 'latest'
+
+stages:
+- stage: Terraform_Provisioning
+  displayName: 'Infrastructure Provisioning'
+  jobs:
+  - job: Terraform_Apply
+    pool:
+      name: 'Linux-Agent'  # Your verified self-hosted agent
+    steps:
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: $(terraform_version)
+
+    # 1. Initialize Backend (Requires a pre-existing Storage Account in Azure)
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        backendServiceArm: 'EpicBook-ARM-Connection' # Ensure this matches your Service Connection name
+        backendAzureRmResourceGroupName: 'rg-terraform-mgmt' # Resource group for tfstate
+        backendAzureRmStorageAccountName: 'stepicbooktfstate' # Storage account for tfstate
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'epicbook.tfstate'
+
+    # 2. Terraform Plan (Visualizes what will be created)
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        environmentServiceNameAzureRM: 'EpicBook-ARM-Connection'
+        commandOptions: >
+          -var="SSH_PUBLIC_KEY=$(SSH_PUBLIC_KEY)" 
+          -var="db_password=$(ARM_CLIENT_SECRET)" 
+          -out=tfplan
+
+    # 3. Terraform Apply (Executes the changes)
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Apply'
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        environmentServiceNameAzureRM: 'EpicBook-ARM-Connection'
+        commandOptions: 'tfplan'
+
+    # 4. Display Outputs (Handy for the manual copy-paste to Ansible)
+    - script: |
+        echo "##vso[task.setvariable variable=frontend_ip]$(terraform output -raw FRONTEND_PUBLIC_IP)"
+        echo "##vso[task.setvariable variable=mysql_host]$(terraform output -raw MYSQL_HOST)"
+        echo "Infrastructure deployment complete."
+        echo "Frontend IP: $(terraform output -raw FRONTEND_PUBLIC_IP)"
+        echo "MySQL Host: $(terraform output -raw MYSQL_HOST)"
+      displayName: 'Capture Terraform Outputs'
